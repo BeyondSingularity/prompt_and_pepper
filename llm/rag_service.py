@@ -146,18 +146,6 @@ Answer:"""
             yield f"Error: {e}"
 
 
-# Global service instance (lazy-loaded)
-_service: Optional[RAGService] = None
-
-
-def _get_service() -> RAGService:
-    """Get or create the global RAG service instance."""
-    global _service
-    if _service is None:
-        _service = RAGService()
-    return _service
-
-
 def llm_answer(query: str, top_k: Optional[int] = None) -> str:
     """
     Simple function to get a complete answer.

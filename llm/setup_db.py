@@ -3,22 +3,29 @@ One-time database setup script.
 Run this to initialize the vector database with recipe embeddings.
 """
 
-import os
+from os import getenv
 
 import chromadb
 from datasets import load_dataset
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-LLM_MODEL = os.getenv("LLM_MODEL", "gemma2")
-CHROMA_PATH = os.getenv("CHROMA_PATH", "./chroma_db")
-COLLECTION_NAME = os.getenv("COLLECTION_NAME", "recipes")
-TOP_K_RESULTS = int(os.getenv("TOP_K_RESULTS", "3"))
 
-DATASET_NAME = os.getenv("DATASET_NAME", "AkashPS11/recipes_data_food.com")
-DATASET_SPLIT = os.getenv("DATASET_SPLIT", "train")
-MAX_RECIPES = int(os.getenv("MAX_RECIPES", "0"))
+def parse_r_list(text):
+        """Parse R-style c() list string to Python list."""
+        if not text or not isinstance(text, str):
+            return []
+        # Remove 'c(' prefix and ')' suffix, then split by '", "'
+        text = text.strip()
+        if text.startswith('c(') and text.endswith(')'):
+            text = text[2:-1]  # Remove c( and )
+        # Split by comma and clean quotes
+        items = []
+        for item in text.split('", "'):
+            item = item.strip(' "')
+            if item:
+                items.append(item)
+        return items
 
 
 def setup_database(force_rebuild: bool = False):
@@ -28,6 +35,15 @@ def setup_database(force_rebuild: bool = False):
     Args:
         force_rebuild: If True, delete existing collection and rebuild from scratch
     """
+
+    EMBEDDING_MODEL = getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+    CHROMA_PATH = getenv("CHROMA_PATH", "./chroma_db")
+    COLLECTION_NAME = getenv("COLLECTION_NAME", "recipes")
+
+    DATASET_NAME = getenv("DATASET_NAME", "AkashPS11/recipes_data_food.com")
+    DATASET_SPLIT = getenv("DATASET_SPLIT", "train")
+    MAX_RECIPES = int(getenv("MAX_RECIPES", "0"))
+
     print(f"Initializing database at {CHROMA_PATH}...")
 
     # Connect to persistent ChromaDB
@@ -79,22 +95,24 @@ def setup_database(force_rebuild: bool = False):
         for idx in range(len(batch_data["RecipeId"])):
             # Extract fields
             name = batch_data["Name"][idx] or "Untitled Recipe"
-            ingredients = batch_data["RecipeIngredientParts"][idx] or []
-            instructions = batch_data["RecipeInstructions"][idx] or ""
+            ingredients_raw = batch_data["RecipeIngredientParts"][idx] or ""
+            instructions_raw = batch_data["RecipeInstructions"][idx] or ""
+
+            # Parse R-style lists
+            ingredients = parse_r_list(ingredients_raw.replace('\r\n', ''))
+            instructions = parse_r_list(instructions_raw.replace('\r\n', ''))
 
             # Build combined text document
-            ingredients_text = ", ".join(ingredients) if ingredients else "No ingredients listed"
-            instructions_text = instructions if instructions else "No instructions provided"
+            ingredients_text = "\n- ".join(ingredients) if ingredients else "No ingredients listed"
+            instructions_text = "\n".join(instructions) if instructions else "No instructions provided"
 
-            recipe_text = f"Recipe: {name}\n\nIngredients: {ingredients_text}\n\nInstructions: {instructions_text}"
+            recipe_text = f"Recipe: {name}\n\nIngredients:\n- {ingredients_text}\n\nInstructions:\n{instructions_text}"
 
             texts.append(recipe_text)
             metadatas.append({
                 "recipe_id": str(batch_data["RecipeId"][idx]),
                 "name": name
-            })
-
-        # Generate embeddings
+            })        # Generate embeddings
         embeddings = embedder.encode(texts, show_progress_bar=False)
 
         # Add to collection
