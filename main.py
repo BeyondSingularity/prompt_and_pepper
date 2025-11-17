@@ -56,14 +56,10 @@ async def main():
     dp = Dispatcher()
 
     # Register handlers
-    dp.message.register(health, F.text == "/health")
+    dp.message(F.text == "/health")(health)
+    dp.message(F.text)(LLM_answer_stream)
 
-    # Choose ONE of these two handlers:
-    # Option 1: Non-streaming (simple, but user waits for complete answer)
-    # dp.message.register(LLM_answer, F.text)
-
-    # Option 2: Streaming (better UX, shows answer being generated)
-    dp.message.register(LLM_answer_stream, F.text)
+    print("Bot is running...")
 
     await dp.start_polling(bot)
 

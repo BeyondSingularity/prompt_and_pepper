@@ -10,3 +10,4 @@ aiogram==3.22.0
 # Utilities
 python-dotenv==1.2.1
 tqdm==4.67.1
+loguru==0.7.3

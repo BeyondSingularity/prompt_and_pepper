@@ -2,16 +2,18 @@
 RAG service for recipe queries with streaming support.
 """
 
+import os
 from typing import Generator, Optional
 
 import chromadb
 import ollama
+from loguru import logger
 from sentence_transformers import SentenceTransformer
-import os
 
 
 class Singleton(type):
     _instances = {}
+
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
@@ -83,7 +85,6 @@ Answer:"""
 
         return context
 
-
     def query(self, query: str, top_k: Optional[int] = None) -> str:
         """
         Get a complete answer to a recipe question.
@@ -98,6 +99,9 @@ Answer:"""
         try:
             context = self._get_context(query, top_k)
             prompt = self._build_prompt(query, context)
+
+            logger.info(f"Generating response for query: {query}")
+            logger.debug(f"Prompt sent to LLM:\n{prompt}")
 
             response = ollama.chat(
                 model=self.model,
