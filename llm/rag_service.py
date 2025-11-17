@@ -3,12 +3,17 @@ RAG service for recipe queries with streaming support.
 """
 
 import os
+import sys
 from typing import Generator, Optional
 
 import chromadb
 import ollama
 from loguru import logger
 from sentence_transformers import SentenceTransformer
+
+# Configure loguru to output to stdout
+logger.remove()  # Remove default handler
+logger.add(sys.stdout, level="DEBUG")
 
 
 class Singleton(type):
@@ -131,6 +136,9 @@ Answer:"""
         try:
             context = self._get_context(query, top_k)
             prompt = self._build_prompt(query, context)
+
+            logger.info(f"Generating streaming response for query: {query}")
+            logger.debug(f"Prompt sent to LLM:\n{prompt}")
 
             stream = ollama.chat(
                 model=self.model,
