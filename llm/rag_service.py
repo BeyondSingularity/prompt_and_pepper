@@ -57,14 +57,16 @@ class RAGService(metaclass=Singleton):
 
         return context
 
-    async def query_stream(self, query: list[dict[str, str]]) -> AsyncGenerator[str, None]:
+    def query_stream(self, query: list[dict[str, str]]) -> Generator[str, None]:
         try:
             logger.debug(f"Query sent to LLM:\n{query}")
-            async for chunk in await ollama.AsyncClient().chat(
+            stream = ollama.chat(
                 model=self.model,
                 messages=query,
                 stream=True
-            ):
+            )
+
+            for chunk in stream:
                 if "message" in chunk and "content" in chunk["message"]:
                     yield chunk["message"]["content"]
 
