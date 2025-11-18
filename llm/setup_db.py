@@ -6,8 +6,10 @@ Run this to initialize the vector database with recipe embeddings.
 from os import getenv
 
 import chromadb
+import kagglehub
+from datasets import Dataset, load_dataset
 from dotenv import load_dotenv
-from datasets import load_dataset
+from kagglehub import KaggleDatasetAdapter
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 
@@ -20,6 +22,8 @@ def parse_r_list(text):
     text = text.strip()
     if text.startswith('c(') and text.endswith(')'):
         text = text[2:-1]  # Remove c( and )
+    if text.startswith('[') and text.endswith(']'):
+        text = text[1:-1]  # Remove [ and ]
     # Split by comma and clean quotes
     items = []
     for item in text.split('", "'):
@@ -70,7 +74,23 @@ def setup_database(force_rebuild: bool = False):
 
     # Load dataset
     print(f"Loading dataset '{DATASET_NAME}'...")
-    dataset = load_dataset(DATASET_NAME, split=DATASET_SPLIT)
+    if DATASET_NAME == "paultimothymooney/recipenlg":
+        idx_column = "#"
+        title_column = "title"
+        ingredients_column = "ingredients"
+        instructions_column = "directions"
+        df = kagglehub.load_dataset(
+            KaggleDatasetAdapter.PANDAS,
+            "paultimothymooney/recipenlg",
+            "RecipeNLG_dataset.csv",
+        )
+        dataset = Dataset.from_pandas(df)
+    elif DATASET_NAME == "AkashPS11/recipes_data_food.com":
+        idx_column = "RecipeId"
+        title_column = "Name"
+        ingredients_column = "RecipeIngredientParts"
+        instructions_column = "RecipeInstructions"
+        dataset = load_dataset(DATASET_NAME, split=DATASET_SPLIT)
 
     # Determine how many recipes to process
     max_recipes = MAX_RECIPES if MAX_RECIPES > 0 else len(dataset)
@@ -93,11 +113,11 @@ def setup_database(force_rebuild: bool = False):
         texts = []
         metadatas = []
 
-        for idx in range(len(batch_data["RecipeId"])):
+        for idx in range(len(batch_data[idx_column])):
             # Extract fields
-            name = batch_data["Name"][idx]
-            ingredients_raw = batch_data["RecipeIngredientParts"][idx]
-            instructions_raw = batch_data["RecipeInstructions"][idx]
+            name = batch_data[title_column][idx]
+            ingredients_raw = batch_data[ingredients_column][idx]
+            instructions_raw = batch_data[instructions_column][idx]
             if not name or not ingredients_raw or not instructions_raw:
                 continue  # Skip incomplete recipes
 
@@ -113,7 +133,7 @@ def setup_database(force_rebuild: bool = False):
 
             texts.append(recipe_text)
             metadatas.append({
-                "recipe_id": str(batch_data["RecipeId"][idx]),
+                "recipe_id": str(batch_data[idx_column][idx]),
                 "name": name
             })        # Generate embeddings
         embeddings = embedder.encode(texts, show_progress_bar=False)
