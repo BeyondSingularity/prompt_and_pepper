@@ -42,7 +42,7 @@ async def LLM_answer_stream(message: Message):
 
     full_response = ""
     chunk_buffer = ""
-    async for chunk in RAGService().query_stream(full_conversation):
+    async for chunk in await RAGService().query_stream(full_conversation):
         full_response += chunk
         chunk_buffer += chunk
 
@@ -60,6 +60,7 @@ async def LLM_answer_stream(message: Message):
         pass
 
     Storage().add_message(user_id, "assistant", full_response)
+    print("✓ Response sent to user.")
 
 
 async def main():
