@@ -60,7 +60,7 @@ class RAGService(metaclass=Singleton):
     async def query_stream(self, query: list[dict[str, str]]) -> AsyncGenerator[str, None]:
         try:
             logger.debug(f"Query sent to LLM:\n{query}")
-            async for chunk in ollama.AsyncClient().chat(
+            async for chunk in await ollama.AsyncClient().chat(
                 model=self.model,
                 messages=query,
                 stream=True
@@ -68,8 +68,6 @@ class RAGService(metaclass=Singleton):
                 if "message" in chunk and "content" in chunk["message"]:
                     yield chunk["message"]["content"]
 
-        except chromadb.errors.NotEnoughElementsError:
-            yield "Error: Not enough recipes in database. Please run setup_db.py first."
         except ollama.ResponseError as e:
             yield f"Error: LLM service unavailable - {e}"
         except Exception as e:
