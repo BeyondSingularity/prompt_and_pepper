@@ -12,7 +12,7 @@ from llm.conversation_state import Storage
 from llm.utils import Singleton
 
 logger.remove()
-logger.add(sys.stdout, level="DEBUG")
+logger.add(sys.stdout, level="INFO")
 load_dotenv()
 
 
@@ -59,7 +59,7 @@ class RAGService(metaclass=Singleton):
 
     def query_stream(self, query: list[dict[str, str]]) -> Generator[str, None, None]:
         try:
-            logger.debug(f"Query sent to LLM:\n{query}")
+            logger.info(f"System prompt sent to LLM: {query[0]['content']}")
             stream = ollama.chat(
                 model=self.model,
                 messages=query,

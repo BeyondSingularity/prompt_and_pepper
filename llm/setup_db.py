@@ -3,6 +3,7 @@ One-time database setup script.
 Run this to initialize the vector database with recipe embeddings.
 """
 
+import ast
 from os import getenv
 
 import chromadb
@@ -15,15 +16,26 @@ from tqdm import tqdm
 
 
 def parse_r_list(text):
-    """Parse R-style c() list string to Python list."""
+    """Parse list string (Python style or R-style) to Python list."""
     if not text or not isinstance(text, str):
         return []
-    # Remove 'c(' prefix and ')' suffix, then split by '", "'
+
     text = text.strip()
+
+    # Try parsing as a Python literal (handles ["a", "b"] correctly)
+    try:
+        val = ast.literal_eval(text)
+        if isinstance(val, list):
+            return val
+    except (ValueError, SyntaxError):
+        pass
+
+    # Fallback for R-style c() lists
     if text.startswith('c(') and text.endswith(')'):
         text = text[2:-1]  # Remove c( and )
-    if text.startswith('[') and text.endswith(']'):
+    elif text.startswith('[') and text.endswith(']'):
         text = text[1:-1]  # Remove [ and ]
+
     # Split by comma and clean quotes
     items = []
     for item in text.split('", "'):
@@ -75,16 +87,16 @@ def setup_database(force_rebuild: bool = False):
     # Load dataset
     print(f"Loading dataset '{DATASET_NAME}'...")
     if DATASET_NAME == "paultimothymooney/recipenlg":
-        idx_column = "#"
+        idx_column = "Unnamed: 0"
         title_column = "title"
         ingredients_column = "ingredients"
         instructions_column = "directions"
-        df = kagglehub.load_dataset(
-            KaggleDatasetAdapter.PANDAS,
+        dataset = kagglehub.load_dataset(
+            KaggleDatasetAdapter.HUGGING_FACE,
             "paultimothymooney/recipenlg",
             "RecipeNLG_dataset.csv",
+            pandas_kwargs={"compression": "zip"}
         )
-        dataset = Dataset.from_pandas(df)
     elif DATASET_NAME == "AkashPS11/recipes_data_food.com":
         idx_column = "RecipeId"
         title_column = "Name"
