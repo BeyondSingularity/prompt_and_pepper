@@ -57,7 +57,7 @@ class RAGService(metaclass=Singleton):
 
         return context
 
-    def query_stream(self, query: list[dict[str, str]]) -> Generator[str, None]:
+    def query_stream(self, query: list[dict[str, str]]) -> Generator[str, None, None]:
         try:
             logger.debug(f"Query sent to LLM:\n{query}")
             stream = ollama.chat(
