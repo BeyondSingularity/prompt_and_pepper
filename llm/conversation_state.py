@@ -1,5 +1,6 @@
 import os
 import json
+import copy
 
 from llm.utils import Singleton
 
@@ -21,7 +22,7 @@ class Storage(metaclass=Singleton):
     def get_conversation(self, user_id: str) -> list[dict[str, str]]:
         if user_id not in self.data:
             self.data[user_id] = []
-        return self.data[user_id]
+        return copy.deepcopy(self.data[user_id])
     
     def add_message(self, user_id: str, role: str, content: str) -> None:
         if user_id not in self.data:
