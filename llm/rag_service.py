@@ -59,7 +59,7 @@ class RAGService(metaclass=Singleton):
     async def query_stream(self, query: list[dict[str, str]]) -> AsyncGenerator[str, None]:
         try:
             logger.debug(f"Query sent to LLM:\n{query}")
-            async for chunk in await ollama.AsyncClient().chat(
+            async for chunk in ollama.AsyncClient().chat(
                 model=self.model,
                 messages=query,
                 stream=True
