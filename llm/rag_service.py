@@ -1,10 +1,6 @@
-"""
-RAG service for recipe queries with streaming support.
-"""
-
 import os
 import sys
-from typing import Generator, Optional
+from typing import Generator, Optional, AsyncGenerator
 
 import chromadb
 import ollama
@@ -14,8 +10,7 @@ from sentence_transformers import SentenceTransformer
 from llm.utils import Singleton
 from llm.conversation_state import Storage
 
-# Configure loguru to output to stdout
-logger.remove()  # Remove default handler
+logger.remove()
 logger.add(sys.stdout, level="DEBUG")
 load_dotenv()
 
@@ -32,7 +27,6 @@ class RAGService(metaclass=Singleton):
     MAX_RECIPES = int(os.getenv("MAX_RECIPES", "0"))
 
     def __init__(self):
-        """Initialize the RAG service with persistent ChromaDB."""
         self.client = chromadb.PersistentClient(path=RAGService.CHROMA_PATH)
 
         try:
@@ -47,55 +41,29 @@ class RAGService(metaclass=Singleton):
         self.model = RAGService.LLM_MODEL
 
     def get_context(self, query: str, top_k: int = None) -> str:
-        """
-        Retrieve relevant recipe context from vector database.
-
-        Args:
-            query: User's question
-            top_k: Number of recipes to retrieve (default from RAGService)
-
-        Returns:
-            Formatted context string with relevant recipes
-        """
         if top_k is None:
             top_k = RAGService.TOP_K_RESULTS
 
-        # Generate query embedding
         query_emb = self.embedder.encode([query])[0]
 
-        # Search for similar recipes
         results = self.collection.query(
             query_embeddings=[query_emb.tolist()],
             n_results=top_k
         )
 
-        # Format context
         documents = results["documents"][0]
         context = "## " + "\n\n## ".join(documents)
 
         return context
 
-    def query_stream(self, query: list[dict[str, str]]) -> Generator[str, None, None]:
-        """
-        Stream the answer to a recipe question token by token.
-
-        Args:
-            query: User's question
-            top_k: Number of recipes to use as context
-
-        Yields:
-            Individual chunks of the response as they are generated
-        """
+    async def query_stream(self, query: list[dict[str, str]]) -> AsyncGenerator[str, None, None]:
         try:
             logger.debug(f"Query sent to LLM:\n{query}")
-
-            stream = ollama.chat(
+            async for chunk in await ollama.AsyncClient().chat(
                 model=self.model,
                 messages=query,
                 stream=True
-            )
-
-            for chunk in stream:
+            ):
                 if "message" in chunk and "content" in chunk["message"]:
                     yield chunk["message"]["content"]
 
