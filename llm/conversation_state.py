@@ -1,7 +1,7 @@
 import os
 import json
 
-from utils import Singleton
+from llm.utils import Singleton
 
 class Storage(metaclass=Singleton):
     def __init__(self, file_path: str = "./data.json"):
