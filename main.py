@@ -7,11 +7,12 @@ from aiogram.types import Message
 from dotenv import load_dotenv
 
 # Import LLM functions
-from llm import RAGService, setup_database, Storage
+from llm import RAGService, Storage, setup_database
 
 
 async def health(message: Message):
     await message.answer("All systems operational!")
+
 
 async def clear_conversation(message: Message):
     """Clear the conversation history for the user."""
@@ -57,7 +58,7 @@ async def LLM_answer_stream(message: Message):
             await response.edit_text(full_response)
     except Exception:
         pass
-    
+
     Storage().add_message(user_id, "assistant", full_response)
 
 

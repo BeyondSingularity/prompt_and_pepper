@@ -1,14 +1,15 @@
 import os
 import sys
-from typing import Generator, Optional, AsyncGenerator
+from typing import AsyncGenerator, Generator, Optional
 
 import chromadb
 import ollama
 from dotenv import load_dotenv
 from loguru import logger
 from sentence_transformers import SentenceTransformer
-from llm.utils import Singleton
+
 from llm.conversation_state import Storage
+from llm.utils import Singleton
 
 logger.remove()
 logger.add(sys.stdout, level="DEBUG")
