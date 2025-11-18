@@ -6,26 +6,27 @@ Run this to initialize the vector database with recipe embeddings.
 from os import getenv
 
 import chromadb
+from dotenv import load_dotenv
 from datasets import load_dataset
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 
 
 def parse_r_list(text):
-        """Parse R-style c() list string to Python list."""
-        if not text or not isinstance(text, str):
-            return []
-        # Remove 'c(' prefix and ')' suffix, then split by '", "'
-        text = text.strip()
-        if text.startswith('c(') and text.endswith(')'):
-            text = text[2:-1]  # Remove c( and )
-        # Split by comma and clean quotes
-        items = []
-        for item in text.split('", "'):
-            item = item.strip(' "')
-            if item:
-                items.append(item)
-        return items
+    """Parse R-style c() list string to Python list."""
+    if not text or not isinstance(text, str):
+        return []
+    # Remove 'c(' prefix and ')' suffix, then split by '", "'
+    text = text.strip()
+    if text.startswith('c(') and text.endswith(')'):
+        text = text[2:-1]  # Remove c( and )
+    # Split by comma and clean quotes
+    items = []
+    for item in text.split('", "'):
+        item = item.strip(' "')
+        if item:
+            items.append(item)
+    return items
 
 
 def setup_database(force_rebuild: bool = False):
@@ -94,9 +95,11 @@ def setup_database(force_rebuild: bool = False):
 
         for idx in range(len(batch_data["RecipeId"])):
             # Extract fields
-            name = batch_data["Name"][idx] or "Untitled Recipe"
-            ingredients_raw = batch_data["RecipeIngredientParts"][idx] or ""
-            instructions_raw = batch_data["RecipeInstructions"][idx] or ""
+            name = batch_data["Name"][idx]
+            ingredients_raw = batch_data["RecipeIngredientParts"][idx]
+            instructions_raw = batch_data["RecipeInstructions"][idx]
+            if not name or not ingredients_raw or not instructions_raw:
+                continue  # Skip incomplete recipes
 
             # Parse R-style lists
             ingredients = parse_r_list(ingredients_raw.replace('\r\n', ''))
@@ -115,6 +118,9 @@ def setup_database(force_rebuild: bool = False):
             })        # Generate embeddings
         embeddings = embedder.encode(texts, show_progress_bar=False)
 
+        if not embeddings.tolist():
+            continue
+
         # Add to collection
         collection.add(
             documents=texts,
@@ -132,4 +138,5 @@ def setup_database(force_rebuild: bool = False):
 if __name__ == "__main__":
     import sys
     force = "--force" in sys.argv
+    load_dotenv()
     setup_database(force_rebuild=force)

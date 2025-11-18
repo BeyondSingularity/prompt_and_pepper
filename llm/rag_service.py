@@ -8,12 +8,14 @@ from typing import Generator, Optional
 
 import chromadb
 import ollama
+from dotenv import load_dotenv
 from loguru import logger
 from sentence_transformers import SentenceTransformer
 
 # Configure loguru to output to stdout
 logger.remove()  # Remove default handler
 logger.add(sys.stdout, level="DEBUG")
+load_dotenv()
 
 
 class Singleton(type):
@@ -107,6 +109,7 @@ Answer:"""
 
             logger.info(f"Generating response for query: {query}")
             logger.debug(f"Prompt sent to LLM:\n{prompt}")
+            logger.debug(RAGService.EMBEDDING_MODEL)
 
             response = ollama.chat(
                 model=self.model,
