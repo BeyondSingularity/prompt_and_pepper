@@ -11,20 +11,13 @@ import ollama
 from dotenv import load_dotenv
 from loguru import logger
 from sentence_transformers import SentenceTransformer
+from llm.utils import Singleton
+from llm.conversation_state import Storage
 
 # Configure loguru to output to stdout
 logger.remove()  # Remove default handler
 logger.add(sys.stdout, level="DEBUG")
 load_dotenv()
-
-
-class Singleton(type):
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
 
 
 class RAGService(metaclass=Singleton):
@@ -37,16 +30,6 @@ class RAGService(metaclass=Singleton):
     DATASET_NAME = os.getenv("DATASET_NAME", "AkashPS11/recipes_data_food.com")
     DATASET_SPLIT = os.getenv("DATASET_SPLIT", "train")
     MAX_RECIPES = int(os.getenv("MAX_RECIPES", "0"))
-
-    def _build_prompt(self, query: str, context: str) -> str:
-        """Build the prompt for the LLM."""
-        return f"""You are a helpful cooking assistant that answers questions about recipes.
-Use the following recipes as context to answer the question:
-
-{context}
-
-Question: {query}
-Answer:"""
 
     def __init__(self):
         """Initialize the RAG service with persistent ChromaDB."""
@@ -63,7 +46,7 @@ Answer:"""
         self.embedder = SentenceTransformer(RAGService.EMBEDDING_MODEL)
         self.model = RAGService.LLM_MODEL
 
-    def _get_context(self, query: str, top_k: int = None) -> str:
+    def get_context(self, query: str, top_k: int = None) -> str:
         """
         Retrieve relevant recipe context from vector database.
 
@@ -88,44 +71,11 @@ Answer:"""
 
         # Format context
         documents = results["documents"][0]
-        context = "\n\n".join(documents)
+        context = "## " + "\n\n## ".join(documents)
 
         return context
 
-    def query(self, query: str, top_k: Optional[int] = None) -> str:
-        """
-        Get a complete answer to a recipe question.
-
-        Args:
-            query: User's question
-            top_k: Number of recipes to use as context
-
-        Returns:
-            Complete answer as a string
-        """
-        try:
-            context = self._get_context(query, top_k)
-            prompt = self._build_prompt(query, context)
-
-            logger.info(f"Generating response for query: {query}")
-            logger.debug(f"Prompt sent to LLM:\n{prompt}")
-            logger.debug(RAGService.EMBEDDING_MODEL)
-
-            response = ollama.chat(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}]
-            )
-
-            return response["message"]["content"]
-
-        except chromadb.errors.NotEnoughElementsError:
-            return "Error: Not enough recipes in database. Please run setup_db.py first."
-        except ollama.ResponseError as e:
-            return f"Error: LLM service unavailable - {e}"
-        except Exception as e:
-            return f"Error: {e}"
-
-    def query_stream(self, query: str, top_k: Optional[int] = None) -> Generator[str, None, None]:
+    def query_stream(self, query: list[dict[str, str]]) -> Generator[str, None, None]:
         """
         Stream the answer to a recipe question token by token.
 
@@ -137,15 +87,11 @@ Answer:"""
             Individual chunks of the response as they are generated
         """
         try:
-            context = self._get_context(query, top_k)
-            prompt = self._build_prompt(query, context)
-
-            logger.info(f"Generating streaming response for query: {query}")
-            logger.debug(f"Prompt sent to LLM:\n{prompt}")
+            logger.debug(f"Query sent to LLM:\n{query}")
 
             stream = ollama.chat(
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=query,
                 stream=True
             )
 
