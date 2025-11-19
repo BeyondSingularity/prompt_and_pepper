@@ -34,7 +34,7 @@ async def LLM_answer_stream(message: Message):
     print(recipes_prompt)
     recipes = RAGService().get_context(recipes_prompt)
 
-    system_prompt = "Ты — помощник, который отвечает на вопросы о рецептах. " + \
+    system_prompt = "Ты — кулинарных помощник, который отвечает на вопросы о рецептах. Всегда отвечай полностью на русском, переводя названия блюд. Не давай никаких рекомендаций, кроме кулинарных." + \
                     "Используй приведённые рецепты как контекст:\n\n" + recipes
     system_prompt = [{"role": "system", "content": system_prompt}]
 
