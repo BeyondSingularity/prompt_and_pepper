@@ -4,6 +4,7 @@ from os import getenv
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message
 from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
 from dotenv import load_dotenv
 
 # Import LLM functions
@@ -34,7 +35,13 @@ async def LLM_answer_stream(message: Message):
     print(recipes_prompt)
     recipes = RAGService().get_context(recipes_prompt)
 
-    system_prompt = "Ты — кулинарных помощник, который отвечает на вопросы о рецептах. Всегда отвечай полностью на русском, переводя названия блюд. Не давай никаких рекомендаций, кроме кулинарных." + \
+    system_prompt = "Ты — кулинарных помощник, который отвечает на вопросы о рецептах. " + \
+                    "Всегда отвечай полностью на русском, переводя названия блюд. " + \
+                    "Не давай никаких рекомендаций, кроме кулинарных.\n\n" + \
+                    "Форматирование допускается ТОЛЬКО через теги: <b>, <i>, <u>, <code>, <a>. " + \
+                    "Все остальные HTML-теги запрещены. Markdown полностью запрещён. " + \
+                    "Текст не должен содержать блоков, параграфов, заголовков и переносов строк в виде HTML. " + \
+                    "Используй только plain text + разрешённые теги.\n\n" + \
                     "Используй приведённые рецепты как контекст:\n\n" + recipes
     system_prompt = [{"role": "system", "content": system_prompt}]
 
@@ -53,11 +60,8 @@ async def LLM_answer_stream(message: Message):
             except Exception:
                 pass
 
-    try:
-        if chunk_buffer:
-            await response.edit_text(full_response, parse_mode=ParseMode.MARKDOWN_V2)
-    except Exception:
-        pass
+    if chunk_buffer:
+        await response.edit_text(full_response)
 
     Storage().add_message(user_id, "assistant", full_response)
     print("✓ Response sent to user.")
@@ -66,7 +70,10 @@ async def LLM_answer_stream(message: Message):
 async def main():
     load_dotenv()
     setup_database(force_rebuild=False)
-    bot = Bot(token=getenv("BOT_TOKEN"))
+    bot = Bot(
+        token=getenv("BOT_TOKEN"),
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
     dp = Dispatcher()
 
     # Register handlers
