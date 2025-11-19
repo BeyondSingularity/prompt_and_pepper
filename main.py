@@ -2,8 +2,8 @@ import asyncio
 from os import getenv
 
 from aiogram import Bot, Dispatcher, F
-from aiogram.enums import ChatAction
 from aiogram.types import Message
+from aiogram.enums import ParseMode
 from dotenv import load_dotenv
 
 # Import LLM functions
@@ -55,7 +55,7 @@ async def LLM_answer_stream(message: Message):
 
     try:
         if chunk_buffer:
-            await response.edit_text(full_response)
+            await response.edit_text(full_response, parse_mode=ParseMode.MARKDOWN_V2)
     except Exception:
         pass
 
